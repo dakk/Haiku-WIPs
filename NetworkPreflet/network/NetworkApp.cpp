@@ -24,8 +24,8 @@ NetworkApp::~NetworkApp()
 void
 NetworkApp::ReadyToRun()
 {
-	fEthWindow = new NetworkWindow();
-	fEthWindow->Show();
+	fNetworkWindow = new NetworkWindow();
+	fNetworkWindow->Show();
 }
 
 int

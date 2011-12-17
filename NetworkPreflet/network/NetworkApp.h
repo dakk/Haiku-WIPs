@@ -27,7 +27,7 @@ class NetworkApp : public BApplication {
 		
 		virtual void ReadyToRun();
 	private:
-		NetworkWindow	*fEthWindow;
+		NetworkWindow	*fNetworkWindow;
 };
 
 

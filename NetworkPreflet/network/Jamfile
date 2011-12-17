@@ -7,7 +7,7 @@ Preference Network :
 	NetworkApp.cpp
 	NetworkWindow.cpp
 	NetworkView.cpp
-	#IPSettingsView.cpp
+	IPSettingsView.cpp
 	Settings.cpp
 
 	# from NetworkStatus
@@ -22,6 +22,7 @@ Preference Network :
 DoCatalogs Network :
 	x-vnd.Haiku-Network
 	:
-	#IPSettingsView.cpp
+	IPSettingsView.cpp
 	NetworkWindow.cpp
+	NetworkView.cpp
 ;

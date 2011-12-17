@@ -27,6 +27,6 @@ NetworkWindow::NetworkWindow()
 		B_TITLED_WINDOW, B_NOT_RESIZABLE | B_ASYNCHRONOUS_CONTROLS
 		| B_NOT_ZOOMABLE | B_AUTO_UPDATE_SIZE_LIMITS | B_QUIT_ON_WINDOW_CLOSE)
 {
-	SetLayout(new BGroupLayout(B_HORIZONTAL));
-	GetLayout()->AddView(new NetworkView());
+	//SetLayout(new BGroupLayout(B_HORIZONTAL));
+	//GetLayout()->AddView(new NetworkView());
 }

@@ -9,11 +9,6 @@
 
 #include "NetworkView.h"
 
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
 
 #include <Alert.h>
 #include <Application.h>
@@ -39,10 +34,6 @@
 #include <StringView.h>
 #include <TextControl.h>
 
-#include <AutoDeleter.h>
-
-#include "Settings.h"
-
 
 static const uint32 kMsgNewNetwork = 'aply';
 static const uint32 kMsgRefresh = 'rvrt';
@@ -53,7 +44,7 @@ static const uint32 kMsgClose = 'clse';
 #undef B_TRANSLATE_CONTEXT
 #define B_TRANSLATE_CONTEXT "NetworkView"
 
-
+ 
 NetworkView::NetworkView()
 	:
 	BView("NetworkView", 0, NULL)

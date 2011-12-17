@@ -25,6 +25,7 @@ class BPath;
 class BTextControl;
 class BStringView;
 class Settings;
+class BNetworkInterface;
 
 
 class IPSettingsView : public BView {
@@ -68,7 +69,7 @@ private:
 				BStringView*	fErrorMessage;
 
 					// TODO: DNS settings do not belong here, do they?
-				BString *fInterface;
+				BNetworkInterface *fInterface;
 					// TODO: the view should not know about the interfaces,
 					// it should only display the given interface, move
 					// one level up.

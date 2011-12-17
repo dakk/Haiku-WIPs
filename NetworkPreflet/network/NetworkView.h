@@ -3,28 +3,16 @@
  * Distributed under the terms of the MIT License.
  *
  * Author:
- *		Andre Alves Garzia, andre@andregarzia.com
- *		Axel Dörfler
- *		Hugo Santos
- *		Vegard Wærp
  * 		Davide Gessa, dak.linux@gmail.com
  */
 #ifndef NETWORK_VIEW_H
 #define NETWORK_VIEW_H
 
 
-#include <ObjectList.h>
 #include <View.h>
-
-#include <posix/regex.h>
 
 
 class BButton;
-class BMenuField;
-class BPath;
-class BTextControl;
-class BStringView;
-class Settings;
 
 
 class NetworkView : public BView {
