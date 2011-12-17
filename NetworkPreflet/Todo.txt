@@ -1,0 +1,33 @@
+From a mockup of Francesco Franchina:
+https://picasaweb.google.com/110321179927597460761/HaikuMockupsGCI?gsessionid=39W_SZYZFuA8J035PyRLrQ#5550983080962177650
+
+NetworkWindow, NetworkView -> Network manager window & view for available networks
+
+ ___________________________
+| Refresh       NewNetwork  |
+| _________________________ |
+||                         ||
+||                         ||
+||                         ||
+||                         ||
+||                         ||
+||                         ||
+||                         ||
+||                         ||
+||                         ||
+||                         ||
+||                         ||
+||                         ||
+||                         ||
+||_________________________||
+|___________________________|
+
+
+
+NewNetworkWindow, NewNetworkView -> Add a network
+WirelessSettingsWindow, WirelessSettingsView -> Wireless settings
+WiredSettingsWindow, WiredSettingsView -> Wired settings
+IPSettingsView -> View for ipv4 / ipv6 settings
+WirelessSecuritySettingsView -> View for wireless settings for security
+
+
