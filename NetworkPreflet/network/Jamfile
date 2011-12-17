@@ -11,8 +11,8 @@ Preference Network :
 	Settings.cpp
 
 	# from NetworkStatus
-	RadioView.cpp
-	WirelessNetworkMenuItem.cpp
+	#RadioView.cpp
+	#WirelessNetworkMenuItem.cpp
 
 	: be $(HAIKU_NETWORK_LIBS) $(TARGET_LIBSUPC++) $(HAIKU_LOCALE_LIBS)
 		libbnetapi.so

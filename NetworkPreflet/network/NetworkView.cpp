@@ -65,15 +65,16 @@ NetworkView::NetworkView()
 	BGroupLayout* rootLayout = new BGroupLayout(B_VERTICAL);
 	SetLayout(rootLayout);
 
-	BGridView* controlsGroup = new BGridView();
-	BGridLayout* layout = controlsGroup->GridLayout();
+	//BGridView* controlsGroup = new BGridView();
+	//BGridLayout* layout = controlsGroup->GridLayout();
 
 	// insets
+	/*
 	float inset = ceilf(be_plain_font->Size() * 0.7);
 	rootLayout->SetInsets(inset, inset, inset, inset);
 	rootLayout->SetSpacing(inset);
 	layout->SetSpacing(inset, inset);
-
+	*/
 	// available network lists
 
 
@@ -92,7 +93,7 @@ NetworkView::NetworkView()
 	fNewNetworkButton->SetEnabled(false);
 	buttonGroup->GroupLayout()->AddView(fNewNetworkButton);
 
-	rootLayout->AddView(controlsGroup);
+	//rootLayout->AddView(controlsGroup);
 	rootLayout->AddView(buttonGroup);
 }
 
