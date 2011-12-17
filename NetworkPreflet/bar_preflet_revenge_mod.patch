@@ -1,0 +1,720 @@
+Index: src/preferences/network/Settings.cpp
+===================================================================
+--- src/preferences/network/Settings.cpp	(revisione 36388)
++++ src/preferences/network/Settings.cpp	(copia locale)
+
+ 
+-bool
+-Settings::_PrepareRequest(struct ifreq& request)
++status_t
++Settings::OpenSettings()
+ {
+-	// This function is used for talking direct to the stack.
+-	// It´s used by _ShowConfiguration.
++	status_t ret = fSettingsFile->InitCheck();
+ 
+-	const char* name = fName.String();
++	if (ret < B_OK) {
++		printf("Settings: initchek error %s\n", strerror(ret));
++		return ret;	
++	}
+ 
+-	if (strlen(name) > IF_NAMESIZE)
+-		return false;
++	ret = Unflatten(fSettingsFile);
++	
++	if (ret < B_OK) {
++		printf("Settings: unflatten error %s\n", strerror(ret));
++		return ret;
++	}
++	
++	return B_OK;	
++}
+ 
+-	strcpy(request.ifr_name, name);
+-	return true;
++
++status_t
++Settings::ReadSetting(const char* name, BString* string)
++{
++	const char* setting;
++	
++	status_t ret = FindString(name, &setting);
++	
++	if (ret < B_OK) {
++		return ret;
++	} else {
++		string->SetTo(setting);
++		return ret;
++	}	
+ }
+ 
+ 
+-void
+-Settings::ReadConfiguration()
++status_t
++Settings::ReadSetting(const char* name, int32* setting)
+ {
+-	ifreq request;
+-	if (!_PrepareRequest(request))
+-		return;
++	return FindInt32(name, setting);
++}
+ 
+-	BString text = "dummy";
+-	char address[32];
+-	sockaddr_in* inetAddress = NULL;
+ 
+-	// Obtain IP.
+-	if (ioctl(fSocket, SIOCGIFADDR, &request, sizeof(request)) < 0)
+-		return;
++status_t
++Settings::ReadSetting(const char* name, bool* setting)
++{
++	return FindBool(name, setting);
++}
+ 
+-	inetAddress = (sockaddr_in*)&request.ifr_addr;
+-	if (inet_ntop(AF_INET, &inetAddress->sin_addr, address,
+-			sizeof(address)) == NULL) {
+-		return;
+-	}
+ 
+-	fIP = address;
++status_t
++Settings::WriteSetting(const char* name, const char* string)
++{
++	return AddString(name, string);
++}
+ 
+-	// Obtain netmask.
+-	if (ioctl(fSocket, SIOCGIFNETMASK, &request, sizeof(request)) < 0)
+-		return;
+ 
+-	inetAddress = (sockaddr_in*)&request.ifr_mask;
+-	if (inet_ntop(AF_INET, &inetAddress->sin_addr, address,
+-			sizeof(address)) == NULL) {
+-		return;
+-	}
++status_t
++Settings::WriteSetting(const char* name, int32 setting)
++{
++	return AddInt32(name, setting);
++}
+ 
+-	fNetmask = address;
+ 
+-	// Obtain gateway
+-	ifconf config;
+-	config.ifc_len = sizeof(config.ifc_value);
+-	if (ioctl(fSocket, SIOCGRTSIZE, &config, sizeof(struct ifconf)) < 0)
+-		return;
++status_t
++Settings::WriteSetting(const char* name, bool setting)
++{
++	return AddBool(name, setting);
++}
+ 
+-	uint32 size = (uint32)config.ifc_value;
+-	if (size == 0)
+-		return;
+ 
+-	void* buffer = malloc(size);
+-	if (buffer == NULL)
+-		return;
++status_t
++Settings::ReplaceSetting(const char* name, const char* string)
++{
++	return ReplaceString(name, 0, string);
++}
+ 
+-	MemoryDeleter bufferDeleter(buffer);
+-	config.ifc_len = size;
+-	config.ifc_buf = buffer;
+ 
+-	if (ioctl(fSocket, SIOCGRTTABLE, &config, sizeof(struct ifconf)) < 0)
+-		return;
++status_t
++Settings::ReplaceSetting(const char* name, int32 setting)
++{
++	return ReplaceInt32(name, 0, setting);
++}
+ 
+-	ifreq* interface = (ifreq*)buffer;
+-	ifreq* end = (ifreq*)((uint8*)buffer + size);
+ 
+-	while (interface < end) {
+-		route_entry& route = interface->ifr_route;
++status_t
++Settings::ReplaceSetting(const char* name, bool setting)
++{
++	return ReplaceBool(name, 0, setting);
++}
+ 
+-		if ((route.flags & RTF_GATEWAY) != 0) {
+-			inetAddress = (sockaddr_in*)route.gateway;
+-			fGateway = inet_ntoa(inetAddress->sin_addr);
+-		}
+ 
+-		int32 addressSize = 0;
+-		if (route.destination != NULL)
+-			addressSize += route.destination->sa_len;
+-		if (route.mask != NULL)
+-			addressSize += route.mask->sa_len;
+-		if (route.gateway != NULL)
+-			addressSize += route.gateway->sa_len;
++status_t
++Settings::RemoveSetting(const char* name)
++{
++	return RemoveData(name);
++}
+ 
+-		interface = (ifreq *)((addr_t)interface + IF_NAMESIZE
+-			+ sizeof(route_entry) + addressSize);
+-	}
+ 
+-	uint32 flags = 0;
+-	if (ioctl(fSocket, SIOCGIFFLAGS, &request, sizeof(struct ifreq)) == 0)
+-		flags = request.ifr_flags;
++status_t
++Settings::DeleteSettings()
++{
++	delete fSettingsFile;
++	BEntry* entry = new BEntry(fSettingsPath.Path(), false);
++	printf("Settings::DeleteSettings() the entry is %s\n", fSettingsPath.Path());
+ 
+-	fAuto = (flags & IFF_AUTO_CONFIGURED) != 0;
++	status_t ret = entry->Remove();
++	if (ret < B_OK)
++		return ret;
+ 
+-	// read resolv.conf for the dns.
+-	fNameServers.MakeEmpty();
++	delete entry;
++	return B_OK;
++}
+ 
+-	res_init();
+-	res_state state = __res_state();
+ 
+-	if (state != NULL) {
+-		for (int i = 0; i < state->nscount; i++) {
+-			fNameServers.AddItem(
+-				new BString(inet_ntoa(state->nsaddr_list[i].sin_addr)));
+-		}
+-		fDomain = state->dnsrch[0];
+-	}
++status_t
++Settings::FlattenSettings()
++{
++	fSettingsFile->Seek(0, SEEK_SET);
++	return Flatten(fSettingsFile);
+ }
+
+
+
+Index: src/preferences/network/Settings.h
+===================================================================
+--- src/preferences/network/Settings.h	(revisione 36388)
++++ src/preferences/network/Settings.h	(copia locale)
+@@ -1,53 +1,45 @@
+ /*
+- * Copyright 2004-2009 Haiku Inc. All rights reserved.
++ * Copyright 2008 Haiku Inc. All rights reserved.
+  * Distributed under the terms of the MIT License.
+  *
+- * Authors:
+- *		Andre Alves Garzia, andre@andregarzia.com
+- *		Vegard Wærp, vegarwa@online.no
++ * Author:
++ *		Casalinuovo Dario, barrett666@gmail.com
+  */
+-#ifndef SETTINGS_H
+-#define SETTINGS_H
++#ifndef PREFLET_SETTINGS_H
++#define PREFLET_SETTINGS_H
+ 
+-
+-#include <ObjectList.h>
++#include <File.h>
++#include <Message.h>
++#include <Path.h>
+ #include <String.h>
+ 
++class Settings : public BMessage {
++	public:
++						Settings(BPath path);
++		virtual			~Settings();
+ 
+-class Settings {
+-public:
+-								Settings(const char* name);
+-	virtual						~Settings();
++		status_t		OpenSettings();
+ 
+-			void				SetIP(BString ip) { fIP = ip; }
+-			void				SetGateway(BString ip) { fGateway = ip; }
+-			void				SetNetmask(BString ip) { fNetmask = ip; }
+-			void				SetDomain(BString domain) { fDomain = domain; }
+-			void				SetAutoConfigure(bool autoConfigure)
+-									{ fAuto = autoConfigure; }
++		status_t		ReadSetting(const char* name, BString* string);
++		status_t		ReadSetting(const char* name, int32* setting);
++		status_t		ReadSetting(const char* name, bool* setting);
+ 
+-			const char*			IP()  { return fIP.String(); }
+-			const char*			Gateway()  { return fGateway.String(); }
+-			const char*			Netmask()  { return fNetmask.String(); }
+-			const char*			Name()  { return fName.String(); }
+-			const char*			Domain() { return fDomain.String(); }
+-			bool				AutoConfigure() { return fAuto; }
++		status_t		WriteSetting(const char* name, const char* string);
++		status_t		WriteSetting(const char* name, int32 setting);
++		status_t		WriteSetting(const char* name, bool setting);
++		
++		status_t		ReplaceSetting(const char* name, const char* string);
++		status_t		ReplaceSetting(const char* name, int32 setting);
++		status_t		ReplaceSetting(const char* name, bool setting);
+ 
+-			BObjectList<BString>& NameServers() { return fNameServers; }
++		status_t		RemoveSetting(const char* name);
+ 
+-			void				ReadConfiguration();
++		status_t		FlattenSettings();
++		
++		status_t		DeleteSettings();
++	protected:
++		BFile*			fSettingsFile;
++		BPath			fSettingsPath;
++}; /* SETTINGS_H */
+ 
+-private:
+-			bool				_PrepareRequest(struct ifreq& request);
+-
+-			BString				fIP;
+-			BString				fGateway;
+-			BString				fNetmask;
+-			BString				fName;
+-			BString				fDomain;
+-			int					fSocket;
+-			bool				fAuto;
+-			BObjectList<BString> fNameServers;
+-};
+-
+-#endif /* SETTINGS_H */
++#endif
+
+
+
+
+
+Index: src/preferences/network/EthernetSettingsView.cpp
+===================================================================
+--- src/preferences/network/EthernetSettingsView.cpp	(revisione 36388)
++++ src/preferences/network/EthernetSettingsView.cpp	(copia locale)
++/*
+ 
+-
+-bool
+-EthernetSettingsView::_PrepareRequest(struct ifreq& request, const char* name)
+-{
+-	// This function is used for talking direct to the stack.
+-	// It's used by _ShowConfiguration.
+-
+-	if (strlen(name) > IF_NAMESIZE)
+-		return false;
+-
+-	strcpy(request.ifr_name, name);
+-	return true;
+ }
+ 
+ 
+ void
+-EthernetSettingsView::_GatherInterfaces()
+-{
+-	// iterate over all interfaces and retrieve minimal status
+-
+-	ifconf config;
+-	config.ifc_len = sizeof(config.ifc_value);
+-	if (ioctl(fSocket, SIOCGIFCOUNT, &config, sizeof(struct ifconf)) < 0)
+-		return;
+-
+-	uint32 count = (uint32)config.ifc_value;
+-	if (count == 0)
+-		return;
+-
+-	void* buffer = malloc(count * sizeof(struct ifreq));
+-	if (buffer == NULL)
+-		return;
+-
+-	MemoryDeleter deleter(buffer);
+-
+-	config.ifc_len = count * sizeof(struct ifreq);
+-	config.ifc_buf = buffer;
+-	if (ioctl(fSocket, SIOCGIFCONF, &config, sizeof(struct ifconf)) < 0)
+-		return;
+-
+-	ifreq* interface = (ifreq*)buffer;
+-
+-	fInterfaces.MakeEmpty();
+-
+-	for (uint32 i = 0; i < count; i++) {
+-		if (strncmp(interface->ifr_name, "loop", 4) && interface->ifr_name[0]) {
+-			fInterfaces.AddItem(new BString(interface->ifr_name));
+-			fSettings.AddItem(new Settings(interface->ifr_name));
+-		}
+-
+-		interface = (ifreq*)((addr_t)interface + IF_NAMESIZE
+-			+ interface->ifr_addr.sa_len);
+-	}
+-}
+-
+-
+-void
+ EthernetSettingsView::AttachedToWindow()
+ {
+ 	fApplyButton->SetTarget(this);
+-	fRevertButton->SetTarget(this);
++//	fRevertButton->SetTarget(this);
+ 	fIPTextControl->SetTarget(this);
+ 	fNetMaskTextControl->SetTarget(this);
+ 	fGatewayTextControl->SetTarget(this);
+ 	fPrimaryDNSTextControl->SetTarget(this);
+ 	fSecondaryDNSTextControl->SetTarget(this);
+ 	fDomainTextControl->SetTarget(this);
+-	fDeviceMenuField->Menu()->SetTargetForItems(this);
+ 	fTypeMenuField->Menu()->SetTargetForItems(this);
+ 
+-	// display settigs of first adapter on startup
+-	_ShowConfiguration(fSettings.ItemAt(0));
++	// display settigs of adapter on startup
++	_ShowConfiguration();
+ }
+ 
+ 
+ void
+ EthernetSettingsView::DetachedFromWindow()
+ {
++
+ }
+ 
+ 
+ void
+-EthernetSettingsView::_ShowConfiguration(Settings* settings)
++EthernetSettingsView::DeleteNetworkAndSettings()
+ {
+-	fCurrentSettings = settings;
+ 
++}
++
++
++void
++EthernetSettingsView::_ShowConfiguration()
++{
+ 	// Clear the inputs.
+ 	fIPTextControl->SetText("");
+ 	fGatewayTextControl->SetText("");
+@@ -303,37 +227,34 @@
+ 	fDomainTextControl->SetText("");
+ 
+ 	bool enableControls = false;
+-	fTypeMenuField->SetEnabled(settings != NULL);
++	fTypeMenuField->SetEnabled(fCurrentSettings != NULL);
+ 
+-	if (settings) {
+-		BMenuItem* item = fDeviceMenuField->Menu()->FindItem(
+-			settings->Name());
+-		if (item)
+-			item->SetMarked(true);
++	if (fCurrentSettings) {
++		BMenuItem* item;
+ 
+-		fIPTextControl->SetText(settings->IP());
+-		fGatewayTextControl->SetText(settings->Gateway());
+-		fNetMaskTextControl->SetText(settings->Netmask());
++		fIPTextControl->SetText(fCurrentSettings->GetIP());
++		fGatewayTextControl->SetText(fCurrentSettings->GetGateway());
++		fNetMaskTextControl->SetText(fCurrentSettings->GetNetmask());
+ 
+-		if (settings->AutoConfigure() == true)
+-			item = fTypeMenuField->Menu()->FindItem(TR("DHCP"));
++		if (fCurrentSettings->GetAutoConfigure() == true)
++			item = fTypeMenuField->Menu()->FindItem("DHCP");
+ 		else
+-			item = fTypeMenuField->Menu()->FindItem(TR("Static"));
++			item = fTypeMenuField->Menu()->FindItem("Static");
+ 		if (item)
+ 			item->SetMarked(true);
+ 
+-		enableControls = settings->AutoConfigure() == false;
++		enableControls = fCurrentSettings->GetAutoConfigure() == false;
+ 
+-		if (settings->NameServers().CountItems() >= 2) {
++		if (fCurrentSettings->NameServers().CountItems() >= 2) {
+ 			fSecondaryDNSTextControl->SetText(
+-				settings->NameServers().ItemAt(1)->String());
++				fCurrentSettings->NameServers().ItemAt(1)->String());
+ 		}
+ 
+-		if (settings->NameServers().CountItems() >= 1) {
++		if (fCurrentSettings->NameServers().CountItems() >= 1) {
+ 			fPrimaryDNSTextControl->SetText(
+-				settings->NameServers().ItemAt(0)->String());
++				fCurrentSettings->NameServers().ItemAt(0)->String());
+ 		}
+-		fDomainTextControl->SetText(settings->Domain());
++		fDomainTextControl->SetText(fCurrentSettings->GetDomain());
+ 	}
+ 
+ 	_EnableTextControls(enableControls);
+@@ -363,7 +284,7 @@
+ 	fCurrentSettings->SetGateway(fGatewayTextControl->Text());
+ 
+ 	fCurrentSettings->SetAutoConfigure(
+-		strcmp(fTypeMenuField->Menu()->FindMarked()->Label(), TR("DHCP")) == 0);
++		strcmp(fTypeMenuField->Menu()->FindMarked()->Label(), "DHCP") == 0);
+ 
+ 	fCurrentSettings->NameServers().MakeEmpty();
+ 	fCurrentSettings->NameServers().AddItem(new BString(
+@@ -373,155 +294,14 @@
+ 	fCurrentSettings->SetDomain(fDomainTextControl->Text());
+ 
+ 	fApplyButton->SetEnabled(false);
+-	fRevertButton->SetEnabled(true);
++	
++	if (fCurrentSettings->GetAutoConfigure())
++		fCurrentSettings->TriggerAutoConfig();
++	
++//	fRevertButton->SetEnabled(true);
+ }
+ 
+ 
+-void
+-EthernetSettingsView::_SaveConfiguration()
+-{
+-	_ApplyControlsToConfiguration();
+-	_SaveDNSConfiguration();
+-	_SaveAdaptersConfiguration();
+-	if (fCurrentSettings->AutoConfigure())
+-		_TriggerAutoConfig(fCurrentSettings->Name());
+-}
+-
+-
+-void
+-EthernetSettingsView::_SaveDNSConfiguration()
+-{
+-	BPath path;
+-	if (find_directory(B_COMMON_SETTINGS_DIRECTORY, &path) != B_OK)
+-		return;
+-
+-	path.Append("network/resolv.conf");
+-
+-	BFile file(path.Path(), B_CREATE_FILE | B_ERASE_FILE | B_WRITE_ONLY);
+-	if (file.InitCheck() != B_OK) {
+-		fprintf(stderr, "failed to open %s for writing: %s\n", path.Path(), 
+-			strerror(file.InitCheck()));
+-		return;
+-	}
+-
+-	BString content("# Generated by Network Preflet\n");
+-	// loop over all adapters
+-	for (int i = 0; i < fSettings.CountItems(); i++) {
+-		Settings* settings = fSettings.ItemAt(i);
+-		for (int j = 0; j < settings->NameServers().CountItems(); j++) {
+-			if (settings->NameServers().ItemAt(j)->Length() > 0) {
+-				content << "nameserver\t"
+-					<< settings->NameServers().ItemAt(j)->String()
+-					<< "\n";
+-			}
+-		}
+-		if (strlen(settings->Domain()) > 0) {
+-			content << "domain\t"
+-				<< settings->Domain()
+-				<< "\n";
+-		}
+-	}
+-
+-	file.Write(content.String(), content.Length());
+-}
+-
+-
+-void
+-EthernetSettingsView::_SaveAdaptersConfiguration()
+-{
+-	BPath path;
+-	status_t status = _GetPath("interfaces", path);
+-	if (status < B_OK)
+-		return;
+-
+-	FILE* fp = NULL;
+-	// loop over all adapters. open the settings file only once,
+-	// append the settins of each non-autoconfiguring adapter
+-	for (int i = 0; i < fSettings.CountItems(); i++) {
+-		if (fSettings.ItemAt(i)->AutoConfigure())
+-			continue;
+-
+-		if (fp == NULL) {
+-			fp = fopen(path.Path(), "w");
+-			if (fp == NULL) {
+-				fprintf(stderr, "failed to open file %s to write "
+-					"configuration: %s\n", path.Path(), strerror(errno));
+-				return;
+-			}
+-		}
+-
+-		fprintf(fp, "interface %s {\n\t\taddress {\n",
+-			fSettings.ItemAt(i)->Name());
+-		fprintf(fp, "\t\t\tfamily\tinet\n");
+-		fprintf(fp, "\t\t\taddress\t%s\n",
+-			fSettings.ItemAt(i)->IP());
+-		fprintf(fp, "\t\t\tgateway\t%s\n",
+-			fSettings.ItemAt(i)->Gateway());
+-		fprintf(fp, "\t\t\tmask\t%s\n",
+-			fSettings.ItemAt(i)->Netmask());
+-		fprintf(fp, "\t\t}\n}\n\n");
+-	}
+-	if (fp) {
+-		printf("%s saved.\n", path.Path());
+-		fclose(fp);
+-	} else {
+-		// all configuration is DHCP, so delete interfaces file.
+-		remove(path.Path());
+-	}
+-}
+-
+-
+-status_t
+-EthernetSettingsView::_TriggerAutoConfig(const char* device)
+-{
+-	BMessenger networkServer(kNetServerSignature);
+-	if (!networkServer.IsValid()) {
+-		(new BAlert("error", TR("The net_server needs to run for the auto "
+-			"configuration!"), TR("OK")))->Go();
+-		return B_ERROR;
+-	}
+-
+-	BMessage message(kMsgConfigureInterface);
+-	message.AddString("device", device);
+-	BMessage address;
+-	address.AddString("family", "inet");
+-	address.AddBool("auto_config", true);
+-	message.AddMessage("address", &address);
+-
+-	BMessage reply;
+-	status_t status = networkServer.SendMessage(&message, &reply);
+-	if (status != B_OK) {
+-		BString errorMessage(TR("Sending auto-config message failed: "));
+-		errorMessage << strerror(status);
+-		(new BAlert("error", errorMessage.String(), TR("OK")))->Go();
+-		return status;
+-	} else if (reply.FindInt32("status", &status) == B_OK
+-			&& status != B_OK) {
+-		BString errorMessage(TR("Auto-configuring failed: "));
+-		errorMessage << strerror(status);
+-		(new BAlert("error", errorMessage.String(), "OK"))->Go();
+-		return status;
+-	}
+-
+-	return B_OK;
+-}
+-
+-
+-status_t
+-EthernetSettingsView::_GetPath(const char* name, BPath& path)
+-{
+-	if (find_directory(B_COMMON_SETTINGS_DIRECTORY, &path, true) != B_OK)
+-		return B_ERROR;
+-
+-	path.Append("network");
+-	create_directory(path.Path(), 0755);
+-
+-	if (name != NULL)
+-		path.Append(name);
+-	return B_OK;
+-}
+-
+-
+ bool
+ MatchPattern(const char* string, const char* pattern)
+ {
+@@ -555,32 +335,51 @@
+ 
+ 
+ void
++EthernetSettingsView::_SaveConfiguration()
++{
++	fCurrentSettings->SaveSettings();
++	_ApplyControlsToConfiguration();
++	if (fCurrentSettings->GetAutoConfigure())
++		fCurrentSettings->TriggerAutoConfig();
++}
++
++
++void
++EthernetSettingsView::RevertAll()
++{
++	_ShowConfiguration();
++}
++
++
++void
+ EthernetSettingsView::MessageReceived(BMessage* message)
+ {
+ 	switch (message->what) {
++
+ 		case kMsgMode:
+ 			if (BMenuItem* item = fTypeMenuField->Menu()->FindMarked())
+-				_EnableTextControls(strcmp(item->Label(), TR("DHCP")) != 0);
++				_EnableTextControls(strcmp(item->Label(), "DHCP") != 0);
+ 			fApplyButton->SetEnabled(true);
+-			fRevertButton->SetEnabled(true);
++//			fRevertButton->SetEnabled(true);
+ 			break;
+-		case kMsgInfo: {
+-		 	const char* name;
++
++		case kMsgInfo: 
++		{
++			const char* name;
+ 			if (message->FindString("interface", &name) != B_OK)
+ 				break;
+-			for (int32 i = 0; i < fSettings.CountItems(); i++) {
+-				Settings* settings = fSettings.ItemAt(i);
+-				if (strcmp(settings->Name(), name) == 0) {
+-					_ShowConfiguration(settings);
++				if (strcmp(fCurrentSettings->GetName(), name) == 0) {
++					_ShowConfiguration();
+ 					break;
+ 				}
+-			}
+ 			break;
+ 		}
++
+ 		case kMsgRevert:
+-			_ShowConfiguration(fCurrentSettings);
+-			fRevertButton->SetEnabled(false);
++			_ShowConfiguration();
++//			fRevertButton->SetEnabled(false);
+ 			break;
++
+ 		case kMsgApply:
+ 			if (_ValidateControl(fIPTextControl)
+ 				&& _ValidateControl(fNetMaskTextControl)
+@@ -590,12 +389,14 @@
+ 					|| _ValidateControl(fPrimaryDNSTextControl))
+ 				&& (strlen(fSecondaryDNSTextControl->Text()) == 0
+ 					|| _ValidateControl(fSecondaryDNSTextControl)))
+-				_SaveConfiguration();
++			_SaveConfiguration();
+ 			break;
++
+ 		case kMsgChange:
+ 			fErrorMessage->SetText("");
+ 			fApplyButton->SetEnabled(true);
+ 			break;
++
+ 		default:
+ 			BView::MessageReceived(message);
+ 	}
+
+
