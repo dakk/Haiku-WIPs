@@ -17,5 +17,4 @@ public:
 								NetworkWindow();
 };
 
-
 #endif	// NETWORK_WINDOW_H
